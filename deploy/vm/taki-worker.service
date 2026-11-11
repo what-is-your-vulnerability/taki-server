@@ -1,0 +1,22 @@
+# /etc/systemd/system/taki-worker.service
+# worker는 docker run으로 스캐너를 띄우므로 taki 사용자가 docker 그룹에 있어야 한다.
+# docker 그룹은 사실상 root 권한이라, 이 VM에는 TAKI 외 서비스를 두지 않는다.
+[Unit]
+Description=TAKI server worker
+After=network-online.target docker.service taki-api.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+User=taki
+WorkingDirectory=/var/lib/taki-server
+EnvironmentFile=/etc/taki/taki.env
+ExecStart=/opt/taki-server/.venv/bin/taki-server worker
+Restart=on-failure
+RestartSec=5
+# worker가 죽으면 실행 중이던 검사는 running으로 남는다. 복구 경로는 아직 없다(아키텍처 정의서 v1.0).
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

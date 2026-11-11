@@ -1,0 +1,23 @@
+# VM용 PostgreSQL. API와 worker는 VM의 서비스(systemd)로 돌고, DB는 이 VM 안에서만 열린다.
+# 비밀번호는 deploy/vm/README.md의 절차대로 TAKI_DB_PASSWORD에 넣는다(저장소에 적지 않는다).
+name: taki
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: taki
+      POSTGRES_PASSWORD: ${TAKI_DB_PASSWORD:?TAKI_DB_PASSWORD를 설정하세요}
+      POSTGRES_DB: taki
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - taki-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taki -d taki"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  taki-pg:
