@@ -1,0 +1,9 @@
+.venv/
+.env
+taki.yml
+runs/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+dist/
