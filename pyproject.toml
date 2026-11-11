@@ -1,0 +1,40 @@
+[project]
+name = "taki-server"
+version = "0.1.0"
+description = "TAKI 진단 엔진의 로컬 API·worker·결과 저장소"
+requires-python = ">=3.12"
+dependencies = [
+  "taki @ git+https://github.com/what-is-your-vulnerability/Threat-Analysis-Knowledge-Intelligence@v0.1.0",
+  "fastapi>=0.162.2",
+  "uvicorn>=0.54.0",
+  "sqlalchemy>=2.1.8",
+  "alembic>=1.20.1",
+  "psycopg[binary]>=3.3.8",
+]
+
+[project.scripts]
+taki-server = "taki_server.cli:main"
+
+[dependency-groups]
+dev = ["pytest", "ruff"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/taki_server"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# DB가 필요한 시험은 -m postgres로 따로 돌린다.
+addopts = "-m 'not postgres'"
+# langsmith 패키지가 자기 내부 모듈을 불러올 때 내는 경고다. 우리 코드와 무관하다.
+filterwarnings = ["ignore:langsmith.wrappers._openai_agents is deprecated:DeprecationWarning"]
+markers = ["postgres: 로컬 PostgreSQL이 필요한 시험"]
+
+[tool.ruff]
+line-length = 120
