@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "TAKI 진단 엔진의 로컬 API·worker·결과 저장소"
 requires-python = ">=3.12"
 dependencies = [
-  "taki @ git+https://github.com/what-is-your-vulnerability/Threat-Analysis-Knowledge-Intelligence@v0.1.0",
+  "taki @ git+https://github.com/what-is-your-vulnerability/Threat-Analysis-Knowledge-Intelligence@v0.2.0",
   "fastapi>=0.162.2",
   "uvicorn>=0.54.0",
   "sqlalchemy>=2.1.8",
