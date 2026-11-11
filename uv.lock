@@ -1255,22 +1255,17 @@ wheels = [
 
 [[package]]
 name = "taki"
-version = "0.1.0"
-source = { git = "https://github.com/what-is-your-vulnerability/Threat-Analysis-Knowledge-Intelligence?rev=v0.1.0#b21eaed4d2460a0e5543300f314f7f94ec301cf4" }
+version = "0.2.0"
+source = { git = "https://github.com/what-is-your-vulnerability/Threat-Analysis-Knowledge-Intelligence?rev=v0.2.0#898001b2371e55aa9a83f8b2a09ddd1d1a2e11e4" }
 dependencies = [
-    { name = "alembic" },
-    { name = "fastapi" },
     { name = "jinja2" },
     { name = "langgraph" },
     { name = "langsmith" },
     { name = "openai" },
-    { name = "psycopg", extra = ["binary"] },
     { name = "pydantic" },
     { name = "pyyaml" },
-    { name = "sqlalchemy" },
     { name = "tree-sitter" },
     { name = "tree-sitter-java" },
-    { name = "uvicorn" },
 ]
 
 [[package]]
@@ -1298,7 +1293,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.162.2" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3.8" },
     { name = "sqlalchemy", specifier = ">=2.1.8" },
-    { name = "taki", git = "https://github.com/what-is-your-vulnerability/Threat-Analysis-Knowledge-Intelligence?rev=v0.1.0" },
+    { name = "taki", git = "https://github.com/what-is-your-vulnerability/Threat-Analysis-Knowledge-Intelligence?rev=v0.2.0" },
     { name = "uvicorn", specifier = ">=0.54.0" },
 ]
 
