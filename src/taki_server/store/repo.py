@@ -44,7 +44,13 @@ def make_session_factory(url: str = DEFAULT_DB_URL) -> sessionmaker[Session]:
 
 def claim_next(session: Session) -> ScanRun | None:
     """대기 중인 작업 하나를 잠그고 running으로 바꾼다. 다른 worker가 잠근 작업은 건너뛴다."""
-    query = select(ScanRun).where(ScanRun.status == "queued").order_by(ScanRun.id).with_for_update(skip_locked=True).limit(1)
+    query = (
+        select(ScanRun)
+        .where(ScanRun.status == "queued")
+        .order_by(ScanRun.id)
+        .with_for_update(skip_locked=True)
+        .limit(1)
+    )
     run = session.scalars(query).first()
     if run is not None:
         run.status = "running"

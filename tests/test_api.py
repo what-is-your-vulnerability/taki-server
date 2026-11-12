@@ -18,9 +18,19 @@ FIX = Path(__file__).parent / "fixtures" / "spring-members"
 VULN = FIX / "vulnerable"
 DEPLOY = Path(__file__).resolve().parents[1] / "deploy" / "docker-compose.yml"
 QUOTE = "회원 삭제는 관리자 권한이 있어야 한다."
-DERIVED = {"rules": [{"title": "회원 삭제 권한", "requirement_quote": QUOTE, "doc_ref": "design.md#회원 관리 API", "category": 2,
-                      "cwe": "CWE-862", "applies_to": ["DELETE /api/v1/admin/members/*"]}],
-           "category_notes": [{"category": c, "reason": "없음"} for c in (1, 3, 4, 5, 6, 7, 8)]}
+DERIVED = {
+    "rules": [
+        {
+            "title": "회원 삭제 권한",
+            "requirement_quote": QUOTE,
+            "doc_ref": "design.md#회원 관리 API",
+            "category": 2,
+            "cwe": "CWE-862",
+            "applies_to": ["DELETE /api/v1/admin/members/*"],
+        }
+    ],
+    "category_notes": [{"category": c, "reason": "없음"} for c in (1, 3, 4, 5, 6, 7, 8)],
+}
 
 
 @pytest.fixture(scope="module")
@@ -61,7 +71,8 @@ def _scan(client, project_id, **extra):
 
 
 def _approved_rule(client, project_id, fake):
-    assert client.post(f"/api/v1/projects/{project_id}/documents", json={"path": str(FIX / "design.md")}).status_code == 201
+    response = client.post(f"/api/v1/projects/{project_id}/documents", json={"path": str(FIX / "design.md")})
+    assert response.status_code == 201
     fake.responses.insert(0, {"match": "보안 설계 검토자", "content": json.dumps(DERIVED, ensure_ascii=False)})
     rules = client.post(f"/api/v1/projects/{project_id}/rules/derive", json={}).json()["rules"]
     assert [r["status"] for r in rules] == ["pending"]

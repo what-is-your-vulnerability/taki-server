@@ -80,5 +80,14 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    for table in ("run_manifest", "ledger_cell", "finding", "verdict", "scan_run", "security_rule", "document", "project"):
+    for table in (
+        "run_manifest",
+        "ledger_cell",
+        "finding",
+        "verdict",
+        "scan_run",
+        "security_rule",
+        "document",
+        "project",
+    ):
         op.drop_table(table)
