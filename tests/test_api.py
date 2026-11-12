@@ -114,7 +114,7 @@ def test_worker_runs_job_then_findings_visible(client, sessions, scripted, tmp_p
     done = client.get(f"/api/v1/scans/{scan['id']}").json()
     assert done["status"] == "done" and done["exit_code"] == 1
     assert done["project_name"] == "demo" and done["created_at"] and done["finished_at"]
-    findings =client.get(f"/api/v1/scans/{scan['id']}/findings").json()
+    findings = client.get(f"/api/v1/scans/{scan['id']}/findings").json()
     assert findings[0]["root_symbol"] == "MemberController.delete" and findings[0]["state"] == "missing_suspected"
     assert findings[0]["fix"]["check_scenario"]
     ledger = client.get(f"/api/v1/scans/{scan['id']}/ledger").json()

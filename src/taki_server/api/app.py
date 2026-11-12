@@ -65,9 +65,17 @@ def _iso(value) -> str | None:
 
 
 def _scan_out(run: ScanRun, project: Project) -> dict:
-    return {"id": run.id, "project_id": run.project_id, "project_name": project.name, "status": run.status,
-            "exit_code": run.exit_code, "error": run.error, "previous_scan_id": run.previous_scan_id,
-            "created_at": _iso(run.created_at), "finished_at": _iso(run.finished_at)}
+    return {
+        "id": run.id,
+        "project_id": run.project_id,
+        "project_name": project.name,
+        "status": run.status,
+        "exit_code": run.exit_code,
+        "error": run.error,
+        "previous_scan_id": run.previous_scan_id,
+        "created_at": _iso(run.created_at),
+        "finished_at": _iso(run.finished_at),
+    }
 
 
 def create_app(session_factory, config: AgentConfig, *, runs_dir: Path = Path("runs")) -> FastAPI:
@@ -126,8 +134,13 @@ def _add_project_routes(app: FastAPI, session_factory, config: AgentConfig, runs
                 raise HTTPException(status_code=400, detail="설계문서가 없습니다.")
             existing = list(session.scalars(select(SecurityRuleRow).where(SecurityRuleRow.project_id == project_id)))
             try:
-                derived = derive_project_rules(paths, Path(project.target_path), [r.rule_id for r in existing], config,
-                                               Path(runs_dir) / f"derive-{project_id}")
+                derived = derive_project_rules(
+                    paths,
+                    Path(project.target_path),
+                    [r.rule_id for r in existing],
+                    config,
+                    Path(runs_dir) / f"derive-{project_id}",
+                )
             except ConfigError as e:
                 raise HTTPException(status_code=409, detail=str(e)) from e
             except (LlmCallError, LlmFormatError, BudgetExceeded, SecretLeft) as e:
@@ -136,8 +149,16 @@ def _add_project_routes(app: FastAPI, session_factory, config: AgentConfig, runs
             for row in existing:
                 if row.status != "approved":
                     session.delete(row)
-            rows = [SecurityRuleRow(project_id=project_id, rule_id=r.rule_id, status=r.status.value, version=r.version,
-                                    data=r.model_dump(mode="json")) for r in derived]
+            rows = [
+                SecurityRuleRow(
+                    project_id=project_id,
+                    rule_id=r.rule_id,
+                    status=r.status.value,
+                    version=r.version,
+                    data=r.model_dump(mode="json"),
+                )
+                for r in derived
+            ]
             session.add_all(rows)
             session.commit()
             return {"rules": [_rule_out(r) for r in rows], "warnings": derived.warnings}
@@ -203,8 +224,10 @@ def _add_scan_routes(app: FastAPI, session_factory) -> None:
             path = Path(run.out_dir or "") / "report.json"
             if not run.out_dir or not path.exists():
                 raise HTTPException(status_code=409, detail="리포트가 아직 없습니다.")
-            return {"project_name": session.get(Project, run.project_id).name,
-                    **json.loads(path.read_text(encoding="utf-8"))}
+            return {
+                "project_name": session.get(Project, run.project_id).name,
+                **json.loads(path.read_text(encoding="utf-8")),
+            }
 
     @app.post(f"{prefix}/gates/evaluate")
     def evaluate_gate(body: GateIn) -> dict:

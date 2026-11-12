@@ -25,9 +25,7 @@ from taki_server.store.models import (
 )
 
 # 로컬 개발 DB의 값이다(deploy/docker-compose.yml). 다른 DB는 TAKI_DB_URL로 넘긴다.
-DEFAULT_DB_URL = os.environ.get(
-    "TAKI_DB_URL", "postgresql+psycopg://taki:taki-local-dev@127.0.0.1:55432/taki"
-)
+DEFAULT_DB_URL = os.environ.get("TAKI_DB_URL", "postgresql+psycopg://taki:taki-local-dev@127.0.0.1:55432/taki")
 MIGRATIONS = Path(__file__).parent / "migrations"
 
 
@@ -59,21 +57,34 @@ def claim_next(session: Session) -> ScanRun | None:
 
 
 def approved_rules(session: Session, project_id: int) -> list[SecurityRule]:
-    rows = session.scalars(select(SecurityRuleRow).where(SecurityRuleRow.project_id == project_id,
-                                                         SecurityRuleRow.status == "approved"))
+    rows = session.scalars(
+        select(SecurityRuleRow).where(SecurityRuleRow.project_id == project_id, SecurityRuleRow.status == "approved")
+    )
     return [SecurityRule.model_validate(r.data) for r in rows]
 
 
 def _save_result(session: Session, run: ScanRun, result: RunResult) -> None:
     for verdict in result.verdicts:
-        session.add(VerdictRow(scan_id=run.id, case_id=verdict.case_id, state=verdict.state.value,
-                               data=verdict.model_dump(mode="json")))
+        session.add(
+            VerdictRow(
+                scan_id=run.id, case_id=verdict.case_id, state=verdict.state.value, data=verdict.model_dump(mode="json")
+            )
+        )
     for finding in result.findings:
-        session.add(FindingRow(scan_id=run.id, finding_id=finding.finding_id, state=finding.state.value,
-                               data=finding.model_dump(mode="json")))
+        session.add(
+            FindingRow(
+                scan_id=run.id,
+                finding_id=finding.finding_id,
+                state=finding.state.value,
+                data=finding.model_dump(mode="json"),
+            )
+        )
     for cell in result.ledger:
-        session.add(LedgerCellRow(scan_id=run.id, subject=cell.subject, target=cell.target, state=cell.state.value,
-                                  reason=cell.reason))
+        session.add(
+            LedgerCellRow(
+                scan_id=run.id, subject=cell.subject, target=cell.target, state=cell.state.value, reason=cell.reason
+            )
+        )
     manifest = Path(result.out) / "manifest.jsonl"
     for line in manifest.read_text(encoding="utf-8").splitlines() if manifest.exists() else []:
         entry = json.loads(line)
@@ -102,9 +113,15 @@ def run_next(session_factory, config: AgentConfig, runs_dir: Path) -> ScanRun | 
     outcome: RunResult | None = None
     error: str | None = None
     try:
-        outcome = run_scan(target, design=[Path(d) for d in design], out=out, config=config, rules=rules,
-                           mode=RunMode.recheck if previous_dir else RunMode.full,
-                           previous=Path(previous_dir) if previous_dir else None)
+        outcome = run_scan(
+            target,
+            design=[Path(d) for d in design],
+            out=out,
+            config=config,
+            rules=rules,
+            mode=RunMode.recheck if previous_dir else RunMode.full,
+            previous=Path(previous_dir) if previous_dir else None,
+        )
     except Exception as e:  # noqa: BLE001 - 어떤 실패든 작업이 running으로 남아 멈추면 안 된다.
         error = f"{type(e).__name__}: {e}"
 
