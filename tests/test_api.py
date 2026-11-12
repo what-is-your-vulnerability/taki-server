@@ -18,9 +18,19 @@ FIX = Path(__file__).parent / "fixtures" / "spring-members"
 VULN = FIX / "vulnerable"
 DEPLOY = Path(__file__).resolve().parents[1] / "deploy" / "docker-compose.yml"
 QUOTE = "회원 삭제는 관리자 권한이 있어야 한다."
-DERIVED = {"rules": [{"title": "회원 삭제 권한", "requirement_quote": QUOTE, "doc_ref": "design.md#회원 관리 API", "category": 2,
-                      "cwe": "CWE-862", "applies_to": ["DELETE /api/v1/admin/members/*"]}],
-           "category_notes": [{"category": c, "reason": "없음"} for c in (1, 3, 4, 5, 6, 7, 8)]}
+DERIVED = {
+    "rules": [
+        {
+            "title": "회원 삭제 권한",
+            "requirement_quote": QUOTE,
+            "doc_ref": "design.md#회원 관리 API",
+            "category": 2,
+            "cwe": "CWE-862",
+            "applies_to": ["DELETE /api/v1/admin/members/*"],
+        }
+    ],
+    "category_notes": [{"category": c, "reason": "없음"} for c in (1, 3, 4, 5, 6, 7, 8)],
+}
 
 
 @pytest.fixture(scope="module")
@@ -61,7 +71,8 @@ def _scan(client, project_id, **extra):
 
 
 def _approved_rule(client, project_id, fake):
-    assert client.post(f"/api/v1/projects/{project_id}/documents", json={"path": str(FIX / "design.md")}).status_code == 201
+    response = client.post(f"/api/v1/projects/{project_id}/documents", json={"path": str(FIX / "design.md")})
+    assert response.status_code == 201
     fake.responses.insert(0, {"match": "보안 설계 검토자", "content": json.dumps(DERIVED, ensure_ascii=False)})
     rules = client.post(f"/api/v1/projects/{project_id}/rules/derive", json={}).json()["rules"]
     assert [r["status"] for r in rules] == ["pending"]
@@ -103,7 +114,7 @@ def test_worker_runs_job_then_findings_visible(client, sessions, scripted, tmp_p
     done = client.get(f"/api/v1/scans/{scan['id']}").json()
     assert done["status"] == "done" and done["exit_code"] == 1
     assert done["project_name"] == "demo" and done["created_at"] and done["finished_at"]
-    findings =client.get(f"/api/v1/scans/{scan['id']}/findings").json()
+    findings = client.get(f"/api/v1/scans/{scan['id']}/findings").json()
     assert findings[0]["root_symbol"] == "MemberController.delete" and findings[0]["state"] == "missing_suspected"
     assert findings[0]["fix"]["check_scenario"]
     ledger = client.get(f"/api/v1/scans/{scan['id']}/ledger").json()

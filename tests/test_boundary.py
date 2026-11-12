@@ -23,6 +23,8 @@ def _engine_imports(tree: ast.Module) -> set[str]:
 
 
 def test_server_imports_only_public_engine():
-    bad = {str(p.relative_to(SERVER)): sorted(_engine_imports(ast.parse(p.read_text(encoding="utf-8"))) - PUBLIC)
-           for p in SERVER.rglob("*.py")}
+    bad = {
+        str(p.relative_to(SERVER)): sorted(_engine_imports(ast.parse(p.read_text(encoding="utf-8"))) - PUBLIC)
+        for p in SERVER.rglob("*.py")
+    }
     assert {k: v for k, v in bad.items() if v} == {}

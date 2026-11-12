@@ -28,6 +28,7 @@ API_HOST = "127.0.0.1"
 ALLOWED_HOSTS = ("127.0.0.1", "localhost")
 STATE_CHANGING = {"POST", "PUT", "PATCH", "DELETE"}
 GATE_OUTCOME = {0: "pass", 1: "warn", 2: "block", 3: "failed"}
+API_PREFIX = "/api/v1"
 
 
 class ProjectIn(BaseModel):
@@ -64,9 +65,17 @@ def _iso(value) -> str | None:
 
 
 def _scan_out(run: ScanRun, project: Project) -> dict:
-    return {"id": run.id, "project_id": run.project_id, "project_name": project.name, "status": run.status,
-            "exit_code": run.exit_code, "error": run.error, "previous_scan_id": run.previous_scan_id,
-            "created_at": _iso(run.created_at), "finished_at": _iso(run.finished_at)}
+    return {
+        "id": run.id,
+        "project_id": run.project_id,
+        "project_name": project.name,
+        "status": run.status,
+        "exit_code": run.exit_code,
+        "error": run.error,
+        "previous_scan_id": run.previous_scan_id,
+        "created_at": _iso(run.created_at),
+        "finished_at": _iso(run.finished_at),
+    }
 
 
 def create_app(session_factory, config: AgentConfig, *, runs_dir: Path = Path("runs")) -> FastAPI:
@@ -82,13 +91,20 @@ def create_app(session_factory, config: AgentConfig, *, runs_dir: Path = Path("r
             return JSONResponse(status_code=415, content={"detail": "JSON 본문이 필요합니다."})
         return await call_next(request)
 
-    prefix = "/api/v1"
+    _add_project_routes(app, session_factory, config, runs_dir)
+    _add_scan_routes(app, session_factory)
+    return app
 
-    def _get(session, model, item_id: int):
-        item = session.get(model, item_id)
-        if item is None:
-            raise HTTPException(status_code=404, detail=f"{model.__tablename__} {item_id} 없음")
-        return item
+
+def _get(session, model, item_id: int):
+    item = session.get(model, item_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail=f"{model.__tablename__} {item_id} 없음")
+    return item
+
+
+def _add_project_routes(app: FastAPI, session_factory, config: AgentConfig, runs_dir: Path) -> None:
+    prefix = API_PREFIX
 
     @app.post(f"{prefix}/projects", status_code=201)
     def create_project(body: ProjectIn) -> dict:
@@ -118,8 +134,13 @@ def create_app(session_factory, config: AgentConfig, *, runs_dir: Path = Path("r
                 raise HTTPException(status_code=400, detail="설계문서가 없습니다.")
             existing = list(session.scalars(select(SecurityRuleRow).where(SecurityRuleRow.project_id == project_id)))
             try:
-                derived = derive_project_rules(paths, Path(project.target_path), [r.rule_id for r in existing], config,
-                                               Path(runs_dir) / f"derive-{project_id}")
+                derived = derive_project_rules(
+                    paths,
+                    Path(project.target_path),
+                    [r.rule_id for r in existing],
+                    config,
+                    Path(runs_dir) / f"derive-{project_id}",
+                )
             except ConfigError as e:
                 raise HTTPException(status_code=409, detail=str(e)) from e
             except (LlmCallError, LlmFormatError, BudgetExceeded, SecretLeft) as e:
@@ -128,8 +149,16 @@ def create_app(session_factory, config: AgentConfig, *, runs_dir: Path = Path("r
             for row in existing:
                 if row.status != "approved":
                     session.delete(row)
-            rows = [SecurityRuleRow(project_id=project_id, rule_id=r.rule_id, status=r.status.value, version=r.version,
-                                    data=r.model_dump(mode="json")) for r in derived]
+            rows = [
+                SecurityRuleRow(
+                    project_id=project_id,
+                    rule_id=r.rule_id,
+                    status=r.status.value,
+                    version=r.version,
+                    data=r.model_dump(mode="json"),
+                )
+                for r in derived
+            ]
             session.add_all(rows)
             session.commit()
             return {"rules": [_rule_out(r) for r in rows], "warnings": derived.warnings}
@@ -137,7 +166,8 @@ def create_app(session_factory, config: AgentConfig, *, runs_dir: Path = Path("r
     @app.get(f"{prefix}/projects/{{project_id}}/rules")
     def list_rules(project_id: int) -> list[dict]:
         with session_factory() as session:
-            rows = session.scalars(select(SecurityRuleRow).where(SecurityRuleRow.project_id == project_id).order_by(SecurityRuleRow.id))
+            query = select(SecurityRuleRow).where(SecurityRuleRow.project_id == project_id)
+            rows = session.scalars(query.order_by(SecurityRuleRow.id))
             return [_rule_out(r) for r in rows]
 
     @app.post(f"{prefix}/rules/{{rule_id}}/approve")
@@ -150,6 +180,10 @@ def create_app(session_factory, config: AgentConfig, *, runs_dir: Path = Path("r
                 row.data = {**row.data, "status": "approved", "version": row.version}
                 session.commit()
             return _rule_out(row)
+
+
+def _add_scan_routes(app: FastAPI, session_factory) -> None:
+    prefix = API_PREFIX
 
     @app.post(f"{prefix}/scans", status_code=202)
     def create_scan(body: ScanIn) -> dict:
@@ -172,13 +206,15 @@ def create_app(session_factory, config: AgentConfig, *, runs_dir: Path = Path("r
     def get_findings(scan_id: int) -> list[dict]:
         with session_factory() as session:
             _get(session, ScanRun, scan_id)
-            return [r.data for r in session.scalars(select(FindingRow).where(FindingRow.scan_id == scan_id).order_by(FindingRow.id))]
+            query = select(FindingRow).where(FindingRow.scan_id == scan_id).order_by(FindingRow.id)
+            return [r.data for r in session.scalars(query)]
 
     @app.get(f"{prefix}/scans/{{scan_id}}/ledger")
     def get_ledger(scan_id: int) -> list[dict]:
         with session_factory() as session:
             _get(session, ScanRun, scan_id)
-            rows = session.scalars(select(LedgerCellRow).where(LedgerCellRow.scan_id == scan_id).order_by(LedgerCellRow.id))
+            query = select(LedgerCellRow).where(LedgerCellRow.scan_id == scan_id).order_by(LedgerCellRow.id)
+            rows = session.scalars(query)
             return [{"subject": r.subject, "target": r.target, "state": r.state, "reason": r.reason} for r in rows]
 
     @app.get(f"{prefix}/scans/{{scan_id}}/report")
@@ -188,8 +224,10 @@ def create_app(session_factory, config: AgentConfig, *, runs_dir: Path = Path("r
             path = Path(run.out_dir or "") / "report.json"
             if not run.out_dir or not path.exists():
                 raise HTTPException(status_code=409, detail="리포트가 아직 없습니다.")
-            return {"project_name": session.get(Project, run.project_id).name,
-                    **json.loads(path.read_text(encoding="utf-8"))}
+            return {
+                "project_name": session.get(Project, run.project_id).name,
+                **json.loads(path.read_text(encoding="utf-8")),
+            }
 
     @app.post(f"{prefix}/gates/evaluate")
     def evaluate_gate(body: GateIn) -> dict:
@@ -198,5 +236,3 @@ def create_app(session_factory, config: AgentConfig, *, runs_dir: Path = Path("r
             if run.status in ("queued", "running"):
                 raise HTTPException(status_code=409, detail="검사가 끝나지 않았습니다.")
             return {"scan_id": run.id, "outcome": GATE_OUTCOME.get(run.exit_code, "failed"), "error": run.error}
-
-    return app

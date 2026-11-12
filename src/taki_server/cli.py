@@ -66,8 +66,15 @@ def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
         return _service(args)
-    except (ConfigError, ForbiddenPathError, FileNotFoundError, LlmCallError, LlmFormatError, BudgetExceeded,
-            SecretLeft) as e:
+    except (
+        ConfigError,
+        ForbiddenPathError,
+        FileNotFoundError,
+        LlmCallError,
+        LlmFormatError,
+        BudgetExceeded,
+        SecretLeft,
+    ) as e:
         print(f"실행 실패: {e}", file=sys.stderr)
         return 3
     except Exception as e:  # noqa: BLE001 - 예상 못 한 실패도 실행 실패(3)로 끝낸다.
