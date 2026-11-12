@@ -1,0 +1,19 @@
+# /etc/systemd/system/taki-api.service
+[Unit]
+Description=TAKI server API
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+User=taki
+WorkingDirectory=/var/lib/taki-server
+# TAKI_DB_URL, OPENAI_API_KEY 등. TAKI_DB_URL은 .env로는 읽히지 않아 여기서 넘긴다. 권한 600.
+EnvironmentFile=/etc/taki/taki.env
+ExecStart=/opt/taki-server/.venv/bin/taki-server api
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
