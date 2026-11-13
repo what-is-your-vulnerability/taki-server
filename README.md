@@ -4,7 +4,7 @@
   <p>진단 요청 · 검사 실행 · 결과 조회</p>
 </div>
 
-TAKI는 [진단 엔진](https://github.com/what-is-your-vulnerability/security-diagnosis-agent)의 CLI로 직접 실행할 수 있다. 이 서버는 검사 대기열과 로컬 HTTP API가 필요할 때 사용한다. API가 요청을 대기열에 넣으면 별도 worker가 엔진을 실행해 결과를 PostgreSQL에 저장한다.
+TAKI는 [진단 엔진](https://github.com/what-is-your-vulnerability/Threat-Analysis-Knowledge-Intelligence)의 CLI로 직접 실행할 수 있다. 이 서버는 검사 대기열과 로컬 HTTP API가 필요할 때 사용한다. API가 요청을 대기열에 넣으면 별도 worker가 엔진을 실행해 결과를 PostgreSQL에 저장한다.
 
 ## 실행
 
