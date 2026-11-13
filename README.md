@@ -1,40 +1,37 @@
-# taki-server
+<div align="center">
+  <img src="./assets/taki-logo.svg" alt="TAKI 로고" width="140" />
+  <h1>TAKI 서버</h1>
+  <p>진단 요청 · 검사 실행 · 결과 조회</p>
+</div>
 
-TAKI 진단 엔진(`taki`)을 감싸 검사 대기열·결과 저장·HTTP API를 제공하는 서버다.
-API는 검사를 대기열에 넣기만 하고, worker가 엔진으로 검사를 돌려 PostgreSQL에 결과를 남긴다.
+TAKI는 [진단 엔진](https://github.com/what-is-your-vulnerability/Threat-Analysis-Knowledge-Intelligence)의 CLI로 직접 실행할 수 있다. 이 서버는 검사 대기열과 로컬 HTTP API가 필요할 때 사용한다. API가 요청을 대기열에 넣으면 별도 worker가 엔진을 실행해 결과를 PostgreSQL에 저장한다.
 
-## 준비
+## 실행
 
-```bash
-docker compose -f deploy/docker-compose.yml up -d --wait   # PostgreSQL만 127.0.0.1:55432
-uv sync                                                     # 엔진은 pyproject.toml에 고정한 버전을 GitHub에서 받는다
-```
-
-`taki.yml`(모델)과 `.env`(키)는 엔진 저장소 README대로 이 폴더에 둔다. 둘 다 커밋하지 않는다.
-
-## 명령
+Python 3.12, `uv`, Docker가 필요하다. 엔진 설정 예시에 따라 `taki.yml`을 만들고 모델·API 키를 설정한다. 키와 설정 파일은 커밋하지 않는다.
 
 ```bash
-uv run taki-server db-upgrade                           # 스키마 마이그레이션
-uv run taki-server api [--port 8000] [--config taki.yml]  # 127.0.0.1에만 바인딩, 인증 없음
-uv run taki-server worker [--once] [--config taki.yml]    # 대기 중인 검사를 돌린다. 결과 파일은 ./runs
-uv run taki-server openapi > deploy/openapi.json        # API 명세 갱신
+docker compose -f deploy/docker-compose.yml up -d --wait
+uv sync
+uv run taki-server db-upgrade
 ```
 
-DB 주소는 `TAKI_DB_URL`로 바꾼다(기본값은 위 compose의 로컬 DB).
-
-## 시험
+API와 worker를 각각 다른 터미널에서 실행한다.
 
 ```bash
-uv run pytest              # DB 없이 도는 시험
-uv run pytest -m postgres  # 위 compose의 PostgreSQL 필요. 시험마다 표를 비운다
+uv run taki-server api --config taki.yml
+uv run taki-server worker --config taki.yml
 ```
 
-## 엔진을 같이 고칠 때
+API 문서는 `http://127.0.0.1:8000/docs`에서 볼 수 있다. 프로젝트를 등록(`POST /api/v1/projects`)하고 검사를 요청(`POST /api/v1/scans`)한 뒤, `GET /api/v1/scans/{id}`와 `GET /api/v1/scans/{id}/report`에서 상태와 결과를 확인한다. 설계문서 등록·규칙 도출·승인 API도 제공한다.
+
+API에는 인증이 없고 `127.0.0.1`에만 바인딩한다. DB 기본 주소는 위 Compose의 로컬 PostgreSQL이며, `TAKI_DB_URL`로 바꿀 수 있다. 엔진은 `pyproject.toml`에 지정된 태그 버전을 설치한다.
+
+## 검증
 
 ```bash
-uv pip install -e <엔진 체크아웃 경로>   # 고정 버전 대신 로컬 엔진을 잠시 쓴다
-uv run --no-sync pytest                  # 덮어쓴 상태로 돌릴 때는 --no-sync
+uv run pytest
+uv run pytest -m postgres
 ```
 
-`--no-sync` 없는 `uv run`이나 `uv sync`는 잠금 파일의 고정 버전으로 되돌린다. 엔진 변경이 끝나면 엔진에 태그를 달고 `pyproject.toml`의 버전을 올린 뒤 `uv lock`한다.
+두 번째 명령은 위 PostgreSQL이 실행 중이어야 한다.
